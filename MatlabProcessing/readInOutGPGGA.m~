@@ -1,0 +1,20 @@
+inputFile = fopen('../parsedData/shortenedAftData.txt');
+
+outputFile = fopen('../parsedData/Aft_section__GPGGA.txt', 'w');
+
+for i=1:340000
+   inputLine = fgetl(inputFile); 
+    
+    if(length(inputLine) > 5)
+        type = inputLine(1:6);
+        
+        if(type == '$GPGGA')
+            if(length(inputLine) > 50)
+                
+                fprintf(outputFile, '%s\n', inputLine);
+            end
+        end
+    end
+        
+end
+fclose(inputFile);
