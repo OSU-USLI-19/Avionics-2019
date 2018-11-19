@@ -32,6 +32,7 @@ void loop()
 {
 	char transmitFlag = '0';
     
+	// Right now this reads an entire packet and then transmits
     if(Serial1.available())
 		rxStream();
 
@@ -49,50 +50,59 @@ void rxStream()
 	// If data to be read from serial port
 	// Maybe rename 'string' so that we know what it does
 	uint8_t string[200], lengthBytes[2], payload[100];
-	uint8_t inbyte = 0x00, currentByte = 0xEE;
+	uint8_t inbyte = 0x00;
 	
 	bool alreadyRead = false, ATU_1_identifier = true, ATU_2_identifier = true;
 	
-	// read from serial port
-    inbyte = readPacketByte();
+	// Loop through entire packet
+	while(packetIndex != (packetLength+3))
+	{
+		// read from serial port
+		inbyte = readPacketByte();
 
-	// End byte? Set if packet was already read
-    if(inbyte == 0x7E)
-    {
-        packetIndex = 1;
-        string[0] = inbyte;
-        alreadyRead = true;
-    }
-		
-	// Reading a fresh byte, case 1
-    if(packetIndex == 1 && !alreadyRead)
-    {
-		string[1] = inbyte;
-		packetIndex = 2;
-		packetLength = string[1];
-		alreadyRead = true;
-    }
+		// End byte? Set if packet was already read
+		if(inbyte == 0x7E)
+		{
+			packetIndex = 1;
+			string[0] = inbyte;
+			alreadyRead = true;
+		}
 	
-	// Reading a fresh byte, case 2
-    if(packetIndex == 2 && !alreadyRead)
-    {
-		string[2] = inbyte;
-		packetLength += string[2];
-		packetIndex = 3;
-		alreadyRead = true;
-    }
+		// is there a reason to do these byte by byte instead of reading the three bytes at once?
+	
+		// Reading a fresh byte, case 1
+		if(packetIndex == 1 && !alreadyRead)
+		{
+			string[1] = inbyte;
+			packetIndex = 2;
+			packetLength = string[1];
+			alreadyRead = true;
+		}
+	
+		// Reading a fresh byte, case 2
+		if(packetIndex == 2 && !alreadyRead)
+		{
+			string[2] = inbyte;
+			packetLength += string[2];
+			packetIndex = 3;
+			alreadyRead = true;
+		}
 
-	// Reading a fresh byte, case 3
-    if((packetIndex > 2) && (packetLengthIndex <= packetLength+3) && !alreadyRead)
-    {
-		string[packetIndex] = inbyte;
-		//Serial.print("current payload packet index: ");
-		//Serial.println(packetIndex);
-		packetLengthIndex+=1;
-		packetIndex+=1;
-		alreadyRead = true;
-    }
+		// Reading a fresh byte, case 3
+		if((packetIndex > 2) && (packetLengthIndex <= packetLength+3) && !alreadyRead)
+		{
+			string[packetIndex] = inbyte;
+			//Serial.print("current payload packet index: ");
+			//Serial.println(packetIndex);
+			packetLengthIndex+=1;
+			packetIndex+=1;
+			alreadyRead = true;
+		}
 		
+		alreadyRead = false;	// This might be a pointless control structure
+	}
+	
+	// Idea: read until end of packet could be accomplished by doing while((packetIndex != (packetLength+3)) && packetLengthIndex <= packetLength+3) && ~alreadyRead)
     if((packetIndex == (packetLength + 3)) && packetIndex > 2)
     {
 		// End of packet
@@ -116,7 +126,7 @@ void rxStream()
 		uint8_t currentWord = 0x00;
 		int idx = 0;
 		
-		//Serial.print("payload: ");
+		// Print to USB
 		while(currentWord != 0xEE)
 		{
 			currentWord = payload[idx];
@@ -149,7 +159,7 @@ void rxStream()
 		Serial.print('@');
     }
 		
-    alreadyRead = false;
+    
 }
 
 // Control function for transmission
