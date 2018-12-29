@@ -18,18 +18,59 @@ uint8_t ATUaddress_1[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x64, 0x5B};
 uint8_t ATUaddress_2[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x78, 0xE2};  //013A204178E2
 
 char ATU_1_Name[5] = "rick", ATU_2_Name[7] = "summer";
+char transmitFlag = '0';
 
 uint8_t *PLECpacket, *packetPayload = new uint8_t[10];
 uint8_t *packet = new uint8_t[220];
 
 void setup()
 {
-	Serial.begin(9600);		// USB to PC
-	Serial1.begin(9600);	// Xbee
+	pcSerial.begin(9600);		// USB to PC
+	xBeeSerial.begin(9600);	// Xbee
 }
 
 void loop()
 {
+	// Do we want to check the serial availability here or in rxStream()?
+	rxStream();
+
+	// This will be expanded into the PLEC trigger proper
+	if(transmitFlag != '0')
+	{
+		txStream(transmitFlag);
+		transmitFlag = '0';
+	}
+
+    // PLEC trigger - this is turned off
+    if(false)
+    //if(true)
+    {
+		counter++;
+		//txTrigger = false;
+		pcSerial.println("transmitting Trigger");
+
+		//0013A2004178E2EC This is the address of Jerry the PLEC transceiver
+
+		testPacket = txRequestPacketGenerator(0x0013A200, 0x4178E2EC, packetPayload); //transmit to jerry the plec
+		//testPacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, packetPayload); //This is for transmitting to the ground station
+
+		if(xBeeSerial)
+		{
+			pcSerial.print("tx packet: ");
+			for(int a = 0; a < 40; a++)
+			{
+				pcSerial.print(" 0x");
+				pcSerial.print(testPacket[a], HEX);
+			}
+			
+			pcSerial.println();
+			xbeeSerial.write(testPacket, sizeofPacketArray(testPacket));
+			pcSerial.println("done transmitting");
+		}
+    }
+}
+
+void rxStream(){
 	// If data to be read from serial port
 	// Maybe rename 'string' so that we know what it does
     uint8_t string[200], lengthBytes[2], payload[100];
@@ -37,7 +78,7 @@ void loop()
     
     bool alreadyRead = false, ATU_1_identifier = true, ATU_2_identifier = true;
     
-    if(Serial1.available())
+    if(xBeeSerial.available())
     {
 		// read from serial port
         inbyte = readPacketByte();
@@ -107,12 +148,12 @@ void loop()
 			while(currentWord != 0xEE)
 			{
 				currentWord = payload[idx];
-				Serial.print((char)currentWord);
+				pcSerial.print((char)currentWord);
 				idx++;
 			}
 
           
-			Serial.print(',');
+			pcSerial.print(',');
 			// Serial.println(); //for debugging, remove for actual thing
 
 			// Serial.print("MAC address of current transmitter: ");
@@ -129,57 +170,28 @@ void loop()
 			}
 			
 			if(ATU_1_identifier)
-				Serial.print(ATU_1_Name); // Prints the atu name
+				pcSerial.print(ATU_1_Name); // Prints the atu name
 			
 			if(ATU_2_identifier)
-				Serial.print(ATU_2_Name); // Prints the atu name
+				pcSerial.print(ATU_2_Name); // Prints the atu name
 			
 			alreadyRead = false;
-			Serial.print('@');
-		}
-    }
-
-    // PLEC trigger - this is turned off
-    if(false)
-    //if(truee)
-    {
-		counter++;
-		//txTrigger = false;
-		Serial.println("transmitting Trigger");
-
-		//0013A2004178E2EC This is the address of Jerry the PLEC transceiver
-
-		testPacket = txRequestPacketGenerator(0x0013A200, 0x4178E2EC, packetPayload); //transmit to jerry the plec
-		//testPacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, packetPayload); //This is for transmitting to the ground station
-
-		if(Serial1)
-		{
-			Serial.print("tx packet: ");
-			for(int a = 0; a < 40; a++)
-			{
-				Serial.print(" 0x");
-				Serial.print(testPacket[a], HEX);
-			}
-			
-			Serial.println();
-			Serial1.write(testPacket, sizeofPacketArray(testPacket));
-			Serial.println("done transmitting");
+			pcSerial.print('@');
 		}
     }
 }
 
-
 // Input from serial
 uint8_t readPacketByte()
 {
-	uint8_t byteUnderTest = Serial1.read();
+	uint8_t byteUnderTest = xBeeSerial.read();
     if(byteUnderTest == 0x7D)
     {
 		// Does this need to be here?
-		while(!Serial1.available())
+		while(!xBeeSerial.available())
 		{} // Stalls until the serial is availabe?
 	
-		uint8_t returnByte = Serial1.read();
+		uint8_t returnByte = xBeeSerial.read();
 		returnByte = returnByte^0x20;
 		return returnByte;
     }
