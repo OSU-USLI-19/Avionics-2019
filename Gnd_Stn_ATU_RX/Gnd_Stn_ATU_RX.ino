@@ -9,14 +9,14 @@
  *
 */
  
-// Might be better to initialize these within rxStream()
+ // Potentially better to initialize inside RX Stream
 int packetIndex = 0;
 int packetLength = 0;
 int packetLengthIndex = 0;
 
 uint8_t ATUaddress_1[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x64, 0x5B};
 uint8_t ATUaddress_2[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x78, 0xE2};  //013A204178E2
-    
+
 char ATU_1_Name[5] = "rick", ATU_2_Name[7] = "summer";
 
 uint8_t *PLECpacket, *packetPayload = new uint8_t[10];
@@ -24,175 +24,150 @@ uint8_t *packet = new uint8_t[220];
 
 void setup()
 {
-	Serial.begin(9600);		// USB
+	Serial.begin(9600);		// USB to PC
 	Serial1.begin(9600);	// Xbee
 }
 
 void loop()
 {
-	char transmitFlag = '0';
-    
-	// Right now this reads an entire packet and then transmits
-    if(Serial1.available())
-		rxStream();
-
-	// If there's something to be transmitted, then run txStream - this implicitly gives rx priority
-    if(transmitFlag != '0')
-	{
-		txStream(transmitFlag);
-		transmitFlag = '0';
-	}
-}
-
-// Control function for receiving - this may need some kind of buffering input so we aren't reading what we wrote in txStream
-void rxStream()
-{
 	// If data to be read from serial port
 	// Maybe rename 'string' so that we know what it does
-	uint8_t string[200], lengthBytes[2], payload[100];
-	uint8_t inbyte = 0x00;
-	
-	bool alreadyRead = false, ATU_1_identifier = true, ATU_2_identifier = true;
-	
-	// Loop through entire packet
-	while(packetIndex != (packetLength+3))
-	{
+    uint8_t string[200], lengthBytes[2], payload[100];
+	uint8_t inbyte = 0x00, currentByte = 0xEE;
+    
+    bool alreadyRead = false, ATU_1_identifier = true, ATU_2_identifier = true;
+    
+    if(Serial1.available())
+    {
 		// read from serial port
-		inbyte = readPacketByte();
+        inbyte = readPacketByte();
 
-		// End byte? Set if packet was already read
-		if(inbyte == 0x7E)
-		{
-			packetIndex = 1;
-			string[0] = inbyte;
-			alreadyRead = true;
-		}
-	
-		// is there a reason to do these byte by byte instead of reading the three bytes at once?
-	
-		// Reading a fresh byte, case 1
-		if(packetIndex == 1 && !alreadyRead)
-		{
+        if(inbyte == 0x7E)
+        {
+            packetIndex = 1;
+            string[0] = inbyte;
+            alreadyRead = true;
+        }
+		
+		// Read a fresh packet, case 1
+        if(packetIndex == 1 && !alreadyRead)
+        {
 			string[1] = inbyte;
 			packetIndex = 2;
 			packetLength = string[1];
 			alreadyRead = true;
-		}
-	
-		// Reading a fresh byte, case 2
-		if(packetIndex == 2 && !alreadyRead)
-		{
+        }
+		
+		// How does this get here without already saving alreadyRead? packetIndex is global, I guess
+		
+		// Read a fresh packet, case 2
+        if(packetIndex == 2 && !alreadyRead)
+        {
 			string[2] = inbyte;
 			packetLength += string[2];
 			packetIndex = 3;
 			alreadyRead = true;
-		}
+        }
 
-		// Reading a fresh byte, case 3
-		if((packetIndex > 2) && (packetLengthIndex <= packetLength+3) && !alreadyRead)
-		{
+		// Read a fresh packet, case 3
+        if((packetIndex > 2) && (packetLengthIndex <= packetLength+3) && !alreadyRead)
+        {
 			string[packetIndex] = inbyte;
 			//Serial.print("current payload packet index: ");
 			//Serial.println(packetIndex);
 			packetLengthIndex+=1;
 			packetIndex+=1;
 			alreadyRead = true;
-		}
+        }
 		
-		alreadyRead = false;	// This might be a pointless control structure
-	}
-	
-	// Idea: read until end of packet could be accomplished by doing while((packetIndex != (packetLength+3)) && packetLengthIndex <= packetLength+3) && ~alreadyRead)
-    if((packetIndex == (packetLength + 3)) && packetIndex > 2)
-    {
-		// End of packet
-		// Serial.print("Packet: ");
-		for(int l = 0; l < packetLength + 3; l++)
-		{
-			if(l > 14)
+        if((packetIndex == (packetLength + 3)) && packetIndex > 2)
+        {
+			// End of packet
+			// Serial.print("Packet: ");
+			for(int l = 0; l < packetLength + 3; l++)
 			{
-				payload[l-15] = string[l];
+				if(l > 14)
+				{
+					payload[l-15] = string[l];
 					
-				if(l == packetLength + 2)
-					payload[l-14] = 0xEE;
+					if(l == (packetLength + 2))
+						payload[l-14] = 0xEE;
+				}
+            
+			// Serial.print((char)string[l]);  // commented out to make the ground station work
+
+				packetLengthIndex = 0;
+				packetIndex = 0;
 			}
-            
-		// Serial.print((char)string[l]);  // commented out to make the ground station work
-		}
-            
-		packetLengthIndex = 0;
-		packetIndex = 0;
           
-		uint8_t currentWord = 0x00;
-		int idx = 0;
+			uint8_t currentWord = 0x00;
+			int idx = 0;
 		
-		// Print to USB
-		while(currentWord != 0xEE)
-		{
-			currentWord = payload[idx];
-			Serial.print((char)currentWord);
-			idx++;
-		}
+			//Serial.print("payload: ");
+			while(currentWord != 0xEE)
+			{
+				currentWord = payload[idx];
+				Serial.print((char)currentWord);
+				idx++;
+			}
 
-		Serial.print(',');
-		// Serial.println(); //for debugging, remove for actual thing
+          
+			Serial.print(',');
+			// Serial.println(); //for debugging, remove for actual thing
 
-		// Serial.print("MAC address of current transmitter: ");
+			// Serial.print("MAC address of current transmitter: ");
 			
-		// How does this work?
-		for(int y = 4; y < 11; y++)
-		{
-			//Serial.print(string[y], HEX);
-			if(ATUaddress_1[y-4] != string[y])
-				ATU_1_identifier = false;
+			// How does this work?
+			for(int y = 4; y < 11; y++)
+			{
+				//Serial.print(string[y], HEX);
+				if(ATUaddress_1[y-4] != string[y])
+					ATU_1_identifier = false;
 				
-			if(ATUaddress_2[y-4] != string[y])
-				ATU_2_identifier = false;
+				if(ATUaddress_2[y-4] != string[y])
+					ATU_2_identifier = false;
+			}
+			
+			if(ATU_1_identifier)
+				Serial.print(ATU_1_Name); // Prints the atu name
+			
+			if(ATU_2_identifier)
+				Serial.print(ATU_2_Name); // Prints the atu name
+			
+			alreadyRead = false;
+			Serial.print('@');
 		}
-			
-		if(ATU_1_identifier)
-			Serial.print(ATU_1_Name); // Prints the atu name
-			
-		if(ATU_2_identifier)
-			Serial.print(ATU_2_Name); // Prints the atu name
-			
-		Serial.print('@');
     }
-		
-    
-}
 
-// Control function for transmission
-void txStream(char flag)
-{
-	if(flag == 'P')
-		PLECTrigger();
-}
+    // PLEC trigger - this is turned off
+    if(false)
+    //if(truee)
+    {
+		counter++;
+		//txTrigger = false;
+		Serial.println("transmitting Trigger");
 
-// PLEC transmission function - I believe something may be broken here
-void PLECTrigger()
-{
-	Serial.println("Transmitting PLEC Trigger");
+		//0013A2004178E2EC This is the address of Jerry the PLEC transceiver
 
-	// 0013A2004178E2EC This is the address of Jerry the PLEC transceiver
+		testPacket = txRequestPacketGenerator(0x0013A200, 0x4178E2EC, packetPayload); //transmit to jerry the plec
+		//testPacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, packetPayload); //This is for transmitting to the ground station
 
-	PLECpacket = txRequestPacketGenerator(0x0013A200, 0x4178E2EC, packetPayload); //transmit to jerry the plec
-	// PLECpacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, packetPayload); //This is for transmitting to the ground station
-
-	if(Serial1)
-	{
-		Serial.print("tx packet: ");
-		for(int a = 0; a < 40; a++)
+		if(Serial1)
 		{
-			Serial.print(" 0x");
-			Serial.print(PLECpacket[a], HEX);
-		}
+			Serial.print("tx packet: ");
+			for(int a = 0; a < 40; a++)
+			{
+				Serial.print(" 0x");
+				Serial.print(testPacket[a], HEX);
+			}
 			
-		Serial.println();
-		Serial1.write(PLECpacket, sizeofPacketArray(PLECpacket));
-		Serial.println("Transmission complete.");
-	}	
+			Serial.println();
+			Serial1.write(testPacket, sizeofPacketArray(testPacket));
+			Serial.println("done transmitting");
+		}
+    }
 }
+
 
 // Input from serial
 uint8_t readPacketByte()
