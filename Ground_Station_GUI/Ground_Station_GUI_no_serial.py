@@ -41,7 +41,7 @@ if __name__ == "__main__":
     read_origin = False
 
     # Opens a file named output.txt for writing GPS data to.
-    output = open("output.txt", "w")
+    output = open("output.txt", "a")
 
     # Name of file to read data from.
     input_file = "GPRMC_Locked_2Mile_ATU_Tracking_data_noNewline.txt"
