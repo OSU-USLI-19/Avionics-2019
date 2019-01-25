@@ -117,13 +117,13 @@ void loop()
 	    {
 	       // Delineate sentence based on commas - that's how the packets are segmented
 	       if(sentence[k] == ',')
-		  commaCounter++;
+			   commaCounter++;
 
 	       if(commaCounter == 2)
-		  comma3Idx = k;
+			   comma3Idx = k;
 
 	       if(commaCounter == 6)
-		  comma6Idx = k; 
+			   comma6Idx = k; 
 	    }
 
 
@@ -138,11 +138,12 @@ void loop()
 	    for(int q = 0; q < 50; q++)
 	       data[q] = sentence[q];
 
+	    int i = 0;
 	    //was myData, modified to test the gps throughput
-	    for(int i = 0; i < (strlen(data) + 1); i++)  
+	    for(i = 0; i < (strlen(data) + 1); i++)  
 	       bufferPacket[i] = (uint8_t)data[i];
 
-	    bufferPacket[asdf - 1] = 0xEE;	// Set the terminator
+	    bufferPacket[i - 1] = 0xEE;	// Set the terminator
 
 	    // packet-up ;D 
 	    payloadPacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, bufferPacket);
