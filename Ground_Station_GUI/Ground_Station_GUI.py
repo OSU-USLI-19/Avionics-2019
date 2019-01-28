@@ -74,7 +74,7 @@ if __name__ == "__main__":
     read_origin = False
 
     # Opens a file named output.txt for writing the serial data to.
-    output = open("output.txt", "w")
+    output = open("output.txt", "a")
 
     # Opens serial port at port_name with 9600 baud and 3 second timeout.
     ser = serial.Serial(port_name, 9600, timeout=30000)
