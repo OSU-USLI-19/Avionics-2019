@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import time
 import threading
 import sys
@@ -9,6 +10,7 @@ import math
 
 from Tkinter import *
 import tkSimpleDialog
+import tkMessageBox
 from random import randint
 import argparse
 from ScrolledText import ScrolledText
@@ -30,17 +32,59 @@ class GPSDatum:
 		return output_str.format(self.h, self.m, second_str, self.latitude, self.longitude)
 
 class DataDisplay(threading.Thread):
-	def __init__(self, root):
+	def __init__(self, root, args):
 		threading.Thread.__init__(self)
 		
 		self.root = root
+		self.args = args
 	
 		self.closing = threading.Event()
 
-	def parse_datum(self, filestream):	
-		# Read a line of GPS data.
-		cur_line = filestream.read(50)
+	# Helper function for discovering serial ports.
+	def find_serial_ports(self):
+		if sys.platform.startswith("win"):
+			ports = ["COM%s" % (i + 1) for i in range(256)]
+		elif sys.platform.startswith("linux") or sys.platform.startswith("cygwin"):
+			# This excludes your current terminal "/dev/tty".
+			ports = glob.glob("/dev/tty[A-Za-z]*")
+		elif sys.platform.startswith("darwin"):
+			ports = glob.glob("/dev/tty.*")
+		else:
+			raise EnvironmentError("Unsupported platform")
 
+		result = []
+		for port in ports:
+			try:
+				s = serial.Serial(port)
+				s.close()
+				result.append(port)
+			except (OSError, serial.SerialException):
+				pass
+		return ports
+
+	def select_serial_port(self, ports):
+		chosen_port = None
+
+		popup = Toplevel()
+		popup.title("Select a serial port:")
+
+		listbox = Listbox(popup)
+
+		def choose_port():
+			chosen_port = listbox.curselection()
+			print chosen_port
+		
+		button = Button(popup, text="Choose This Port", command=choose_port)
+		
+		for port in ports:
+			listbox.insert("end", port)
+
+		listbox.pack(side="top")
+		button.pack(side="bottom")
+
+		return chosen_port
+
+	def parse_datum(self, cur_line):
 		# Skip data sent while ATU is not locked.
 		if cur_line.endswith("0000.0000,N,00000.0000,E,000.0"):
 			return None
@@ -90,36 +134,63 @@ class DataDisplay(threading.Thread):
 	def on_datum(self, datum):
 		raise NotImplementedError()
 	
-	def run(self):	
-		# Opens a file named output.txt for writing GPS data to.
-		output = open("output.txt", "w")
+	def run(self):
+		# Get the file or serial port to read from.
+		input_stream = None
+		if self.args.input:
+			# Open a file to use as input.
+			input_stream = open(self.args.input, "r")
+		else:
+			# Get a list of available serial ports
+			ports = self.find_serial_ports()
 
-		# Name of file to read data from.
-		input_file = "GPRMC_Locked_2Mile_ATU_Tracking_data_noNewline.txt"
-		
-		with open(input_file, "r") as filestream:
-			while not self.closing.is_set():
-				# Read characters until we find the "@" delimiter.
-				c = filestream.read(1)
-				while c and c != "@":
-					c = filestream.read(1)
+			# If no ports were found, show an error and quit
+			if len(ports) == 0:
+				error_box = tkMessageBox.showerror("Error", "No serial ports found!")
+				self.root.event_generate("<<QUIT>>", when="tail")
+				return
+			# If only one port was found, use it
+			if len(ports) == 1:
+				port_name = ports[0]
+			#If multiple ports were found, allow the user to select one
+			else:
+				port_name = ports[self.select_serial_port(ports)]
+				print port_name
 
+			# Open serial port at port_name at 9600 baud and with 30000 second timeout.
+			input_stream = serial.Serial(port_name, 9600, timeout=30000, rtscts=True, dsrdtr=True) #FIXME
+
+		# Determine the name of the output file.
+		if self.args.output:	
+			output_file = self.args.output
+		else:
+			output_file = "output.txt"
+
+		# Opens a file for writing GPS data to.
+		output = open(output_file, "w")
+
+		while not self.closing.is_set():
+			# Read characters until we find the "@" delimiter.
+			c = input_stream.read(1)
+			while c != "@":
 				# Break at end of file.
-				if not c:
+				if self.args.input and not c:
 					break
+				c = input_stream.read(1)
 
-				# Parse a line of GPS data.
-				datum = self.parse_datum(filestream)
-				if not datum:
-					continue
-	
-				# Write time, latitude, and longitude to stdout and output file.
-				datum_str = datum.string()
-				output.write(datum_str + "\n")
-				print(datum_str)
+			# Parse a line of GPS data.
+			line = input_stream.read(50) #TODO Serial unicode decoding
+			datum = self.parse_datum(line)
+			if not datum:
+				continue
 
-				# Perform subclass-specific actions.
-				self.on_datum(datum)
+			# Write time, latitude, and longitude to stdout and output file.
+			datum_str = datum.string()
+			output.write(datum_str + "\n")
+			print(datum_str)
+
+			# Perform subclass-specific actions.
+			self.on_datum(datum)
 	
 		# Close the output file.
 		output.close()	
@@ -129,8 +200,8 @@ class DataDisplay(threading.Thread):
 			self.root.event_generate("<<QUIT>>", when="tail")
 
 class GraphDisplay(DataDisplay):
-	def __init__(self, root):
-		DataDisplay.__init__(self, root)
+	def __init__(self, root, args):
+		DataDisplay.__init__(self, root, args)
 
 		self.fig = Figure()
 		self.graph = FigureCanvasTkAgg(self.fig, master=self.root)
@@ -167,7 +238,7 @@ class GraphDisplay(DataDisplay):
 		# Convert lat/lon into UTM (standardized 2D cartesian projection).
 		x, y, _, _ = utm.from_latlon(datum.latitude, datum.longitude)
 
-		# Set first point as origin (0,0).
+		# Set first point as origin (0,0) .
 		if not self.origin:
 			self.origin = (x, y)
 
@@ -199,8 +270,8 @@ class GraphDisplay(DataDisplay):
 			self.text = self.ax.text(0.05, 0.05, data_str, fontsize=12, transform=self.ax.transAxes, bbox=self.props)
 
 class TextDisplay(DataDisplay):
-	def __init__(self, root):
-		DataDisplay.__init__(self, root)
+	def __init__(self, root, args):
+		DataDisplay.__init__(self, root, args)
 
 		frame = Frame(root)
 		scrollframe = Frame(frame)
@@ -243,9 +314,9 @@ def app():
 	root.geometry("%dx%d+0+0" % (w, h))
 
 	if args.textonly:
-		display = TextDisplay(root)
+		display = TextDisplay(root, args)
 	else:
-		display = GraphDisplay(root)
+		display = GraphDisplay(root, args)
  
 	def do_thing():
 		print "Did the thing"
