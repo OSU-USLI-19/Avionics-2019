@@ -5,6 +5,7 @@ import serial
 import re
 import utm
 import math
+import numpy
 
 import matplotlib
 matplotlib.use("Qt5Agg")
@@ -13,8 +14,9 @@ from matplotlib.figure import Figure
 
 from serial.tools.list_ports import comports
 
-from PyQt5.QtWidgets import (QApplication, QLabel, QPushButton, QVBoxLayout, QWidget, QInputDialog, QMessageBox, QListWidget, QSizePolicy)
+from PyQt5.QtWidgets import (QApplication, QLabel, QPushButton, QVBoxLayout, QWidget, QInputDialog, QMessageBox, QListWidget, QSizePolicy, QTextBrowser)
 from PyQt5.QtCore import pyqtSlot, pyqtSignal, Qt, QThread, QObject, QTimer
+from PyQt5.QtGui import QFontDatabase, QTextOption, QTextCursor
 
 class GPSDatum:
 	def __init__(self, h, m, s, latitude, longitude):
@@ -23,6 +25,13 @@ class GPSDatum:
 		self.s = s
 		self.latitude = latitude
 		self.longitude = longitude
+
+	def cartesian(self):
+		x, y, _, _ = utm.from_latlon(self.latitude, self.longitude)
+		return x, y
+
+	def seconds(self):
+		return (360 * self.h) + (60 * self.m) + self.s
 
 	def string(self):
 		second_str = "{0:.3f}".format(self.s).zfill(6)
@@ -38,6 +47,7 @@ class InputWorker(QObject):
 		self.input_name = input_name
 		self.args = args
 
+		self.input_stream = None
 		self.quitting = False
 
 	def parse_datum(self, cur_line):
@@ -90,14 +100,13 @@ class InputWorker(QObject):
 	@pyqtSlot()
 	def run(self):
 		# Get the file or serial port to read from.
-		input_stream = None
 		if self.args.input:
 			# Open a file to use as input.
-			input_stream = open(self.input_name, "r")
+			self.input_stream = open(self.input_name, "r")
 		else:
 			# Open serial port at port_name at 9600 baud and with 30000 second timeout.
 			# TODO: More serial testing
-			input_stream = serial.Serial(self.input_name, 9600, timeout=30000, rtscts=True, dsrdtr=True) #FIXME
+			self.input_stream = serial.Serial(self.input_name, 9600, timeout=30000, rtscts=True, dsrdtr=True)
 
 		# Determine the name of the output file.
 		if self.args.output:
@@ -113,9 +122,9 @@ class InputWorker(QObject):
 
 			# Read characters until we find the "@" delimiter.
 			if self.args.input:
-				c = input_stream.read(1)
+				c = self.input_stream.read(1)
 				while c and c != "@" and not self.quitting:
-					c = input_stream.read(1)
+					c = self.input_stream.read(1)
 
 				# Break if quitting.
 				if self.quitting:
@@ -126,18 +135,19 @@ class InputWorker(QObject):
 					break
 
 				# Read a line of GPS data.
-				line = input_stream.read(50)
+				line = self.input_stream.read(50)
 			else:
 				remaining_chars = 51
+				loop_counter = 0
 				while True:
 					if self.quitting:
-						input_stream.close()
+						self.input_stream.close()
 						output.close()
 						return
 
-					if input_stream.in_waiting > 0:
-						c = input_stream.read(1)
-						print "DO READ " + str(remaining_chars) + "     " + c
+					if self.input_stream.in_waiting > 0:
+						c = self.input_stream.read(1)
+						# print "DO READ " + str(remaining_chars) + "     " + c
 						if remaining_chars <= 50:
 							line += c
 							remaining_chars -= 1
@@ -145,6 +155,12 @@ class InputWorker(QObject):
 								break
 						elif c == "@":
 							remaining_chars -= 1
+
+					if loop_counter % 50 == 0:
+						app.processEvents()
+						loop_counter = 0
+					else:
+						loop_counter += 1
 
 			try:
 				decoded = line.decode("utf-8")
@@ -168,10 +184,15 @@ class InputWorker(QObject):
 			app.processEvents()
 
 		# Close the input stream.
-		input_stream.close()
+		self.input_stream.close()
 	
 		# Close the output file.
 		output.close()
+
+	@pyqtSlot()
+	def send_command(self):
+		if not self.args.input and self.input_stream:
+			self.input_stream.write("0".encode("utf-8")) #TODO: Send whatever actually needs to be sent here
 
 	@pyqtSlot()
 	def finish(self):
@@ -209,6 +230,8 @@ class GraphDisplay(DataDisplay):
 
 		self.line, = self.axes.plot(self.lon_data, self.lat_data)
 
+		self.graph.draw()
+
 		self.text = None
 		self.props = dict(boxstyle="square", facecolor="aliceblue", alpha=0.5)
 
@@ -224,7 +247,7 @@ class GraphDisplay(DataDisplay):
 		self.fig.savefig(filename)
 
 	def new_datum(self, datum):
-		x, y, _, _ = utm.from_latlon(datum.latitude, datum.longitude)
+		x, y = datum.cartesian()
 
 		if not self.origin:
 			self.origin = (x, y)
@@ -257,19 +280,23 @@ class GraphDisplay(DataDisplay):
 		data_str = "Distance: {0:.2f} m\nAngle: {1:.2f}$^\circ$".format(dist, angle)
 		self.text = self.axes.text(0.05, 0.05, data_str, fontsize=12, transform=self.axes.transAxes, bbox=self.props)
 
-
 class TextDisplay(DataDisplay):
 	def __init__(self, args):
 		DataDisplay.__init__(self, args)
 
-		self.layout = QVBoxLayout()
-		self.text = QListWidget(self)
-		self.text.addItem("Application started!")
+		self.layout = QVBoxLayout() 
+		self.text = QTextBrowser()
+		self.text.setWordWrapMode(QTextOption.NoWrap)
+		self.text.setFont(QFontDatabase.systemFont(QFontDatabase.FixedFont))
+		self.text.insertPlainText("Application started!")
 		self.layout.addWidget(self.text)
 		self.setLayout(self.layout)
 
 	def new_datum(self, datum):
-		self.text.insertItem(0, datum.string())
+		self.text.moveCursor(QTextCursor.End)
+		self.text.insertPlainText("\n" + datum.string())
+		v_scroll = self.text.verticalScrollBar()
+		v_scroll.setValue(v_scroll.maximum())
 
 class MainWindow(QWidget):
 	finish_thread = pyqtSignal()
@@ -277,13 +304,20 @@ class MainWindow(QWidget):
 	def __init__(self, app, args):
 		QWidget.__init__(self)
 
+		self.SPEED_THRESHOLD = .1 # meters / second FIXME: Use the correct value here
+		self.STATIONARY_MIN_TIME = 5 # seconds FIXME: Use the correct value here
+
+		self.prev_coords = None
+		self.prev_time = None
+		self.stationary_start_time = None
+
 		# Create the display, either a text or graphical display depending on flags.
 		if args.textonly:
 			self.display = TextDisplay(args)
 		else:
 			self.display = GraphDisplay(args)
 
-		self.button = QPushButton("Do the thing")
+		self.button = QPushButton("Eject")
 		self.button.setEnabled(False)
 		
 		# Create layout and add widgets
@@ -291,9 +325,6 @@ class MainWindow(QWidget):
 		self.layout.addWidget(self.display)
 		self.layout.addWidget(self.button)
 		self.setLayout(self.layout)
-
-		# Connect button click signal to action function.
-		self.button.clicked.connect(self.do_thing)
 
 		input_name = args.input
 		# If not in file-input mode, read from a serial port.
@@ -316,21 +347,21 @@ class MainWindow(QWidget):
 		self.input_thread = QThread()
 		self.input_worker = InputWorker(input_name, args)
 
+		# Connect button click signal to action function.
+		self.button.clicked.connect(self.input_worker.send_command)
+
 		# Connect thread start signal to worker run slot.
 		self.input_thread.started.connect(self.input_worker.run)
 
 		# Connect quitting signal to worker quit slot.
 		self.finish_thread.connect(self.input_worker.finish)
 
-		# Connect signal providing a newly recieved datum to the datum display function.
+		# Connect signal providing a newly recieved datum to the datum display and processing functions.
 		self.input_worker.new_datum.connect(self.display.new_datum)
+		self.input_worker.new_datum.connect(self.new_datum)
 
 		# Move the worker to the thread.
-		self.input_worker.moveToThread(self.input_thread)		
-
-	@pyqtSlot()
-	def do_thing(self):
-		print "Did the thing!"
+		self.input_worker.moveToThread(self.input_thread)
 
 	def select_serial_port(self, ports):
 		ok = False
@@ -343,6 +374,37 @@ class MainWindow(QWidget):
 				message_box.exec_()
 		return port
 
+	def new_datum(self, datum):
+		# FIXME: Is this the check we want to be doing?
+
+		# Get the new datum's coordinates and timestamp
+		coords = numpy.array(datum.cartesian())
+		time = datum.seconds()
+
+		# Only check for stationariness after first datum
+		if self.prev_coords is not None:
+			# Compute position and time differences to determine speed
+			dist = numpy.linalg.norm(coords - self.prev_coords) # meters
+			time_diff = time - self.prev_time # seconds
+
+			# If the speed is less than the threshold, start checking if enough time has elapsed
+			if (dist / time_diff) < self.SPEED_THRESHOLD:
+				if self.stationary_start_time:
+					# If enough time has elapsed with a low enough speed, consider the transmitter to be stationary and allow the button to be pressed
+					if (time - self.stationary_start_time) >= self.STATIONARY_MIN_TIME:
+						self.button.setEnabled(True)
+				else:
+					# Set the initial stationary timestamp on the first loop within the speed threshold
+					self.stationary_start_time = time
+			else:
+				# If the speed is greater than the threshold, disable the button and reset the initial stationary timestamp
+				self.button.setEnabled(False)
+				self.stationary_start_time = None
+		
+		# Overwrite the previous data with the newest
+		self.prev_coords = coords
+		self.prev_time = time
+
 	def closeEvent(self, event):
 		# Tell the input thread to quit and wait for it to finish before closing.
 		self.finish_thread.emit()
@@ -353,7 +415,7 @@ class MainWindow(QWidget):
 			# Prompt user to save the figure.
 			filename, ok = QInputDialog.getText(self, "Save Graph?", "Enter a filename to save the graph under, or press Cancel to quit without saving:")
 			if ok:
-				self.display.save_fig(filename)
+				self.display.save_fig(filename)	
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description="USLI 2019 ground station")
