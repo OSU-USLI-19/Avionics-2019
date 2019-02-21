@@ -31,7 +31,7 @@ int writeCounter = 0, writeIdx = 0;	// <--- If everything breaks, it's because o
 void setup()
 {
    Serial1.begin(9600);	// Sends to ground station, this needs to be raised
-   Serial2.begin(38400);	// Receives from GPS unit
+   Serial2.begin(9600);	// Receives from GPS unit
 
    // This isn't dynamic because memory leaks will goof the entire thing
    bufferPacket = new uint8_t[300];
