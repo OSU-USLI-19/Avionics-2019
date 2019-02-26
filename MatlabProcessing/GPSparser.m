@@ -70,9 +70,10 @@ end
 
 figure(1);
 % /2 is to account for a weird time axis issue we were having on x axis
-plot(arrayplot(:,5)/2,arrayplot(:,6)); %drift radius in feet
+plot(arrayplot(:,5)/2,arrayplot(:,6),'LineWidth',2); %drift radius in feet
 ylabel('Drift Distance [ft]');
 xlabel('Time [s]');
+title('Drift Distance Full Scale 2/22');
 
 %first GPS coordinate pulled is the reference for everthing else when
 %considering the drift distance
