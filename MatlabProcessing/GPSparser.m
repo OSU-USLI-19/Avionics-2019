@@ -1,16 +1,18 @@
+% Run this second!!
+
 %clc;
 %clear;
-inputFile = fopen('parsedData/Fore_section_pad2trees_GPGGA.txt'); %913
+inputFile = fopen('test.txt'); %913
 %inputFile = fopen('ParsedData/modified_clean_GPGGA_flight_data.txt'); %687 long
 %inputFile = fopen('ParsedData/Fore_section_GPGGA.txt'); %830
 
-nmea_options  =  [  '$GPGGA'
-                    '$GPGLL'
-                    '$GPGSA'
-                    '$GPGSV'
-                    '$GPRMC'
-                    '$GPVTG'
-                    '$GPZDA'
+nmea_options  =  [  '$GNGGA'
+                    '$GNGLL'
+                    '$GNGSA'
+                    '$GNGSV'
+                    '$GNRMC'
+                    '$GNVTG'
+                    '$GNZDA'
                     '$SDDBS'];
 %datalog = []
 indexcounter = 1;
@@ -26,7 +28,7 @@ for i = 1:2254
         fields = char(fields{1}); % line delineated into character array
 
         if(case_t == 1)
-            [GPGGAdata,ierr] = nmealineread(inputLine); %using nmealineread, we get
+            [GNGGAdata,ierr] = nmealineread(inputLine); %using nmealineread, we get
             %coordinates in radians which can be used to plot things. If taken
             %from the field like it is below, the data is still in terms of
             %degrees, minutes and seconds which is undesirable for most
@@ -35,9 +37,9 @@ for i = 1:2254
             %%GPVTGdata = nmealineread(fgetl(inputFile));
             %%GPGGAdata = nmealineread(fgetl(inputFile));
             if(ierr == 0)
-                arrayplot(indexcounter,1) = GPGGAdata.latitude;
-                arrayplot(indexcounter,2) = -GPGGAdata.longitude;
-                arrayplot(indexcounter,3) = GPGGAdata.altitude;
+                arrayplot(indexcounter,1) = GNGGAdata.latitude;
+                arrayplot(indexcounter,2) = -GNGGAdata.longitude;
+                arrayplot(indexcounter,3) = GNGGAdata.altitude;
                 arrayplot(indexcounter,4) = str2double(inputLine(8:17));
                 if(i == 1)
                     initialTime = arrayplot(indexcounter,4);
@@ -66,8 +68,9 @@ for i = 1:2254
     
 end
 
-figure(3);
-plot(arrayplot(:,5),arrayplot(:,6)) %drift radius in feet
+figure(1);
+% /2 is to account for a weird time axis issue we were having on x axis
+plot(arrayplot(:,5)/2,arrayplot(:,6)); %drift radius in feet
 ylabel('Drift Distance [ft]');
 xlabel('Time [s]');
 

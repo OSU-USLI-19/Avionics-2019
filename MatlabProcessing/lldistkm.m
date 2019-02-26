@@ -1,3 +1,5 @@
+% This is also a library file! Don't break it!
+
 function [d1km d2km]=lldistkm(latlon1,latlon2)
 % format: [d1km d2km]=lldistkm(latlon1,latlon2)
 % Distance:

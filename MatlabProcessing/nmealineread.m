@@ -1,3 +1,5 @@
+% This is just a library! Change it if you need to!
+
 function [data,ierr]  =  nmealineread(nline)
 %NMEALINEREAD reads an NMEA sentence into a MATLAB structure array
 %
@@ -54,13 +56,13 @@ ierr  =  0;
 %
 %%  Set up a list of valid NMEA strings
 %
-nmea_options  =  [  '$GPGGA'
-                    '$GPGLL'
-                    '$GPGSA'
-                    '$GPGSV'
-                    '$GPRMC'
-                    '$GPVTG'
-                    '$GPZDA'
+nmea_options  =  [  '$GNGGA'
+                    '$GNGLL'
+                    '$GNGSA'
+                    '$GNGSV'
+                    '$GNRMC'
+                    '$GNVTG'
+                    '$GNZDA'
                     '$SDDBS'];
 %
 %%  Find which string we're dealing with
