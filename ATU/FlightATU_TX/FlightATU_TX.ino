@@ -7,7 +7,7 @@
 
 #include <SD.h>
 
-uint8_t *bufferPacket, *packet = new uint8_t[220];
+uint8_t *bufferPacket, *payloadPacket;
 
 // SD Card Setup
 const int chipSelect = BUILTIN_SDCARD;
@@ -19,17 +19,18 @@ int writeCounter = 0;
 
 void setup()
 {
-    Serial.begin(9600);
+    Serial.begin(9600);  // USB to ground station
     Serial1.begin(9600); // XBee to ground station
     Serial2.begin(9600); // Receives from GPS unit
 
     bufferPacket = new uint8_t[300];
 
+    // LED indicating things are online
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
-
-    //SD.begin(chipSelect);
-    //dataFile = SD.open("datalog.txt", FILE_WRITE);
+    
+    SD.begin(chipSelect);
+    dataFile = SD.open("datalog.txt", FILE_WRITE);
 }
 
 void loop()
@@ -38,7 +39,6 @@ void loop()
 
     if (Serial2.available()) // Receive from GPS 
     {
-        //Serial.print("gps is on dawg");
         char gpsBuffer = Serial2.read();    // Read byte from serial input
 
         // If we get a non newline GPS read from the buffer and aren't at the end
@@ -54,22 +54,22 @@ void loop()
             gpsSentence[count] = '\0';
             count = 0;
 
-            /* if (dataFile)   // If SD card file is open write data to SD card
+            // Potential for fixing this... why refresh every 100 lines?
+            if (dataFile)   // If SD card file is open write data to SD card
             {
                 if (writeCounter == 100)
                 {
-                    //dataFile.println(gpsSentence);
                     writeCounter = 0;
-                    //dataFile.close();
-                    //dataFile = SD.open("datalog.txt", FILE_WRITE);
+                    dataFile.println(gpsSentence);
+                    dataFile.close();
+                    dataFile = SD.open("datalog.txt", FILE_WRITE);
                 }
                 else // Otherwise increment the counter and write to file
                 {
                     writeCounter++;
-                    //dataFile.println(gpsSentence);
-                    //Serial.println(gpsSentence);
+                    dataFile.println(gpsSentence);
                 }
-            }*/
+            }
 
             // Ensure that data is $GPRMC or $GNRMC
             if ((gpsSentence[0] == '$') && (gpsSentence[3] == 'R'))
@@ -77,18 +77,15 @@ void loop()
                 for (int i = 0; i < 50; i++)
                     bufferPacket[i] = (uint8_t)gpsSentence[i];
 
-                // Works to here
-                
                 bufferPacket[50] = 0xEE; // Set terminator
-                bufferPacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, bufferPacket);
+                payloadPacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, bufferPacket);
 
                 if (Serial1.available())    // Send over transceiver
-                    Serial1.write(bufferPacket, sizeofPacketArray(bufferPacket));
+                    Serial1.write(payloadPacket, sizeofPacketArray(payloadPacket));
 
-                Serial.write(bufferPacket, sizeofPacketArray(bufferPacket));
+                Serial.write(payloadPacket, sizeofPacketArray(payloadPacket));
+                Serial.print('\n');
             }
-
-            Serial.print("pee?");
         }
     }
 }
@@ -99,7 +96,9 @@ uint8_t *txRequestPacketGenerator(uint32_t SH_Address, uint32_t SL_Address, uint
     // Best way to do this is just use one array with the maximum number of bytes that could be put into it and making sure that
     // the 0xEE char is placed at the end of the desired packet
     uint16_t checksum = 0;
-
+    uint8_t *packet = new uint8_t[220];
+    int i = 0;
+    
     // Global initialization
     for (int x = 0; x < 220; x++)
         packet[x] = 0x00;
@@ -107,7 +106,6 @@ uint8_t *txRequestPacketGenerator(uint32_t SH_Address, uint32_t SL_Address, uint
     // DEFAULT PACKET NEEDS TO BE BASICALLY EMPTY AND CONSTRUCTED
     // ON THE FLY IN ORDER FOR THE ESCAPE CHARACTER DEALIO TO WORK CORRECTLY
 
-    // Can we scrunch this up into standard start bits?
     packet[0] = 0x7E; // start delimeter
     packet[1] = 0x00; // length MSB
     packet[2] = 0x10; // length LSB
@@ -141,12 +139,12 @@ uint8_t *txRequestPacketGenerator(uint32_t SH_Address, uint32_t SL_Address, uint
         packet[2] = 0x00FF & packetLength; // setting LSB packet length
 
         // place payload in array
-        for (int w = 0; w < (newArraySize); w++)
-            packet[w + 17] = payload[w];
+        for (i = 0; i < (newArraySize); i++)
+            packet[i + 17] = payload[i];
 
         // calculate new checksum
-        for (int e = 3; e < (newArraySize - 1); e++)
-            checksum += packet[e];
+        for (i = 3; i < (newArraySize - 1); i++)
+            checksum += packet[i];
 
         uint8_t finalChecksum = checksum & 0xFF;
         finalChecksum = 0xFF - finalChecksum;
@@ -166,18 +164,18 @@ uint8_t *txRequestPacketGenerator(uint32_t SH_Address, uint32_t SL_Address, uint
 
         packet[newArraySize - 1] = finalChecksum;
 
-        for (int y = 1; y < newArraySize; y++)
+        for (i = 1; i < newArraySize; i++)
         {
             //double check to see what happens if the checksum contains an escape character
-            if (packet[y] == 0x7E || packet[y] == 0x7D || packet[y] == 0x11 || packet[y] == 0x13)
+            if (packet[i] == 0x7E || packet[i] == 0x7D || packet[i] == 0x11 || packet[i] == 0x13)
             {
                 newArraySize++;
 
-                for (int r = (newArraySize); r > (y); r--)
+                for (int r = (newArraySize); r > (i); r--)
                     packet[r] = packet[r - 1];
 
-                packet[y + 1] = packet[y] ^ 0x20;
-                packet[y] = 0x7D;
+                packet[i + 1] = packet[i] ^ 0x20;
+                packet[i] = 0x7D;
             }
         }
 
@@ -196,17 +194,17 @@ uint8_t *txRequestPacketGenerator(uint32_t SH_Address, uint32_t SL_Address, uint
 }
 
 // Simple sizeof
-int sizeofPacketArray(uint8_t *packett)
+int sizeofPacketArray(uint8_t *packetToSize)
 {
     int packetCounter = 0;
 
-    while (packett[packetCounter] != 0xEE)
+    while (packetToSize[packetCounter] != 0xEE)
         packetCounter++;
 
-    if (packett[packetCounter] == 0xEE)
+    if (packetToSize[packetCounter] == 0xEE)
         return packetCounter;
     else
-        return 9000; // This better not be a MEME
+        return 0; // This better not be a MEME
 }
 
 /* Final Notes:
