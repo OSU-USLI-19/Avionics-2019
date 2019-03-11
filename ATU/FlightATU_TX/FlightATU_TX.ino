@@ -7,8 +7,7 @@
 
 #include <SD.h>
 
-// Predefine packet structures
-uint8_t *bufferPacket = new uint8_t[300], *packet = new uint8_t[220];
+uint8_t *bufferPacket, *packet = new uint8_t[220];
 
 // SD Card Setup
 const int chipSelect = BUILTIN_SDCARD;
@@ -20,22 +19,26 @@ int writeCounter = 0;
 
 void setup()
 {
+    Serial.begin(9600);
     Serial1.begin(9600); // XBee to ground station
     Serial2.begin(9600); // Receives from GPS unit
+
+    bufferPacket = new uint8_t[300];
 
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
 
-    SD.begin(chipSelect);
-    dataFile = SD.open("datalog.txt", FILE_WRITE);
+    //SD.begin(chipSelect);
+    //dataFile = SD.open("datalog.txt", FILE_WRITE);
 }
 
 void loop()
-{
+{  
     static int count = 0; // This must be a static data type?
 
     if (Serial2.available()) // Receive from GPS 
     {
+        //Serial.print("gps is on dawg");
         char gpsBuffer = Serial2.read();    // Read byte from serial input
 
         // If we get a non newline GPS read from the buffer and aren't at the end
@@ -51,21 +54,22 @@ void loop()
             gpsSentence[count] = '\0';
             count = 0;
 
-            if (dataFile)   // If SD card file is open write data to SD card
+            /* if (dataFile)   // If SD card file is open write data to SD card
             {
                 if (writeCounter == 100)
                 {
-                    dataFile.println(gpsSentence);
+                    //dataFile.println(gpsSentence);
                     writeCounter = 0;
-                    dataFile.close();
-                    dataFile = SD.open("datalog.txt", FILE_WRITE);
+                    //dataFile.close();
+                    //dataFile = SD.open("datalog.txt", FILE_WRITE);
                 }
                 else // Otherwise increment the counter and write to file
                 {
                     writeCounter++;
-                    dataFile.println(gpsSentence);
+                    //dataFile.println(gpsSentence);
+                    //Serial.println(gpsSentence);
                 }
-            }
+            }*/
 
             // Ensure that data is $GPRMC or $GNRMC
             if ((gpsSentence[0] == '$') && (gpsSentence[3] == 'R'))
@@ -73,12 +77,18 @@ void loop()
                 for (int i = 0; i < 50; i++)
                     bufferPacket[i] = (uint8_t)gpsSentence[i];
 
+                // Works to here
+                
                 bufferPacket[50] = 0xEE; // Set terminator
                 bufferPacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, bufferPacket);
 
                 if (Serial1.available())    // Send over transceiver
                     Serial1.write(bufferPacket, sizeofPacketArray(bufferPacket));
+
+                Serial.write(bufferPacket, sizeofPacketArray(bufferPacket));
             }
+
+            Serial.print("pee?");
         }
     }
 }
