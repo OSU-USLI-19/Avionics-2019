@@ -9,30 +9,47 @@
  *
 */
 
+#include <SD.h>
+
+// SD Card Setup
+const int chipSelect = BUILTIN_SDCARD;
+File dataFile;
+
 // Potentially better to initialize inside RX Stream?
 int packetIndex = 0;
 int packetLength = 0;
 int packetLengthIndex = 0;
+int writeCounter = 0;
 
-uint8_t ATUaddress_1[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x64, 0x5B};
-uint8_t ATUaddress_2[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x78, 0xE2}; //013A204178E2
+//uint8_t ATUaddress_1[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x64, 0x5B}; // Morty
+uint8_t ATUaddress_1[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x55, 0xD7}; // Rick
+uint8_t ATUaddress_2[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x78, 0xE2}; // Summer
 
 char ATU_1_Name[5] = "rick", ATU_2_Name[7] = "summer";
 char transmitFlag = '0'; // Used to determine if PLEC trigger needs to be sent
 
-uint8_t *PLECpacket, *packetPayload = new uint8_t[10];
+uint8_t *PLECpacket, *packetPayload = new uint8_t[100];
 uint8_t *packet = new uint8_t[220];
 
 void setup()
 {
     Serial.begin(9600);  // USB to PC
     Serial1.begin(9600); // Xbee
+
+    // LED indicating things are online
+    pinMode(13, OUTPUT);
+    digitalWrite(13, HIGH);
+
+    SD.begin(chipSelect);
+    dataFile = SD.open("datalog.txt", FILE_WRITE);
 }
 
 void loop()
 {
-    if (Serial1.available())
-        rxStream();
+    if (Serial1.available()){
+      rxStream();
+      //Serial.println("Out of rxStream");
+    }
 
     // This will be expanded into the PLEC trigger proper
     if (transmitFlag != '0')
@@ -117,6 +134,8 @@ void rxStream()
         {
             currentWord = payload[idx];
             Serial.print((char)currentWord);
+            dataFile.print((char)currentWord);
+            
             idx++;
         }
 
@@ -141,7 +160,7 @@ void rxStream()
             Serial.print(ATU_2_Name); // Prints the atu name
 
         alreadyRead = false;
-        Serial.print('@');
+        Serial.println('@');
     }
 }
 

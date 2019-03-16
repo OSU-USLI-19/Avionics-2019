@@ -8,6 +8,7 @@
 #include <SD.h>
 
 uint8_t *bufferPacket, *payloadPacket;
+char data[100];
 
 // SD Card Setup
 const int chipSelect = BUILTIN_SDCARD;
@@ -74,17 +75,45 @@ void loop()
             // Ensure that data is $GPRMC or $GNRMC
             if ((gpsSentence[0] == '$') && (gpsSentence[3] == 'R'))
             {
-                for (int i = 0; i < 50; i++)
-                    bufferPacket[i] = (uint8_t)gpsSentence[i];
+                for (int q = 0; q < 50; q++)
+                    bufferPacket[q] = (uint8_t)gpsSentence[q];
+                
+                /*for(int q = 0; q < 50; q++)
+                  data[q] = gpsSentence[q];
 
-                bufferPacket[50] = 0xEE; // Set terminator
-                payloadPacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, bufferPacket);
-
-                if (Serial1.available())    // Send over transceiver
-                    Serial1.write(payloadPacket, sizeofPacketArray(payloadPacket));
-
-                Serial.write(payloadPacket, sizeofPacketArray(payloadPacket));
+                /*Serial.print("STRLEN IS ");
+                Serial.print(strlen(data));
+                Serial.print(", ");
+                Serial.print(strlen(data)+1);
                 Serial.print('\n');
+
+                int asdf = 0;
+                for(asdf = 0; asdf < (strlen(data) + 1); asdf++)
+                  bufferPacket[asdf] = (uint8_t)data[asdf];*/
+
+                /*Serial.print("asdf: ");
+                Serial.print(asdf);
+                Serial.print('\n');*/
+                bufferPacket[50] = 0xEE;
+                //bufferPacket[asdf - 1] = 0xEE; // Set terminator
+                //Serial.print(asdf-1);
+                //Serial.print('\n');
+                
+                Serial.write(bufferPacket, sizeofPacketArray(bufferPacket));
+                Serial.print('\n');
+
+                // Unity
+                payloadPacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, bufferPacket);
+                // Scooby 
+                // payloadPacket = txRequestPacketGenerator(0x0013A200,0x418C5CE4, bufferPacket);
+                //0013A200418C5CE4
+
+                if (Serial1){    // Send over transceiver
+                    Serial.print("hewwo?\n");
+                    Serial1.write(payloadPacket, sizeofPacketArray(payloadPacket));
+                }
+
+                //Serial.write(payloadPacket,sizeofPacketArray(payloadPacket));
             }
         }
     }
