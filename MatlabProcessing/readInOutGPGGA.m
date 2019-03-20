@@ -1,6 +1,6 @@
-inputFile = fopen('parsedData/ForeDataShort_pad2roverEjection.txt');
+inputFile = fopen('aft.txt');
 
-outputFile = fopen('parsedData/Fore_section_pad2roverEjection_GPGGA.txt', 'w');
+outputFile = fopen('output.txt', 'w');
 
 for i=1:315821  %need to figure out how to do this automatically
    inputLine = fgetl(inputFile); 
@@ -8,7 +8,7 @@ for i=1:315821  %need to figure out how to do this automatically
     if(length(inputLine) > 5)
         type = inputLine(1:6);
         
-        if(type == '$GPGGA')
+        if(type == '$GNGGA')
             if(length(inputLine) > 50)
                 
                 fprintf(outputFile, '%s\n', inputLine);

@@ -44,7 +44,7 @@ void loop()
         //Serial.print("serial 2 available");
         char gpsBuffer = Serial2.read();    // Read byte from serial input
 
-        Serial.print(gpsBuffer);
+        //Serial.print(gpsBuffer);
         // If we get a non newline GPS read from the buffer and aren't at the end
         if ((gpsBuffer != '\n') && (count < gpsSentenceLen))
         {
@@ -101,9 +101,11 @@ void loop()
                 //bufferPacket[asdf - 1] = 0xEE; // Set terminator
                 //Serial.print(asdf-1);
                 //Serial.print('\n');
-                
-                Serial.write(bufferPacket, sizeofPacketArray(bufferPacket));
-                Serial.print('\n');
+
+                if(Serial){
+                  Serial.write(bufferPacket, sizeofPacketArray(bufferPacket));
+                  Serial.print('\n');
+                }
 
                 // Unity
                 payloadPacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, bufferPacket);
@@ -112,9 +114,9 @@ void loop()
                 //0013A200418C5CE4
 
                 if (Serial1){    // Send over transceiver
-                    //Serial.print("hewwo?\n");
+                    //if(Serial){Serial.print("hello?\n");}
                     Serial1.write(payloadPacket, sizeofPacketArray(payloadPacket));
-                    Serial1.flush();
+                    //Serial1.flush();
                 }
 
                 //Serial.write(payloadPacket,sizeofPacketArray(payloadPacket));
