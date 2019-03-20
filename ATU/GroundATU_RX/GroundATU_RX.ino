@@ -12,8 +12,8 @@
 #include <SD.h>
 
 // SD Card Setup
-const int chipSelect = BUILTIN_SDCARD;
-File dataFile;
+// const int chipSelect = BUILTIN_SDCARD;
+// File dataFile;
 
 // Potentially better to initialize inside RX Stream?
 int packetIndex = 0;
@@ -40,8 +40,8 @@ void setup()
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
 
-    SD.begin(chipSelect);
-    dataFile = SD.open("datalog.txt", FILE_WRITE);
+    //SD.begin(chipSelect);
+    //dataFile = SD.open("datalog.txt", FILE_WRITE);
 }
 
 void loop()
@@ -50,6 +50,9 @@ void loop()
       rxStream();
       //Serial.println("Out of rxStream");
     }
+    /*else{
+      Serial.print("no data\n");
+    }*/
 
     // This will be expanded into the PLEC trigger proper
     if (transmitFlag != '0')
@@ -134,7 +137,7 @@ void rxStream()
         {
             currentWord = payload[idx];
             Serial.print((char)currentWord);
-            dataFile.print((char)currentWord);
+            //dataFile.print((char)currentWord);
             
             idx++;
         }

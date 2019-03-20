@@ -36,12 +36,15 @@ void setup()
 
 void loop()
 {  
+    //Serial.print("hello?");
     static int count = 0; // This must be a static data type?
 
     if (Serial2.available()) // Receive from GPS 
     {
+        //Serial.print("serial 2 available");
         char gpsBuffer = Serial2.read();    // Read byte from serial input
 
+        Serial.print(gpsBuffer);
         // If we get a non newline GPS read from the buffer and aren't at the end
         if ((gpsBuffer != '\n') && (count < gpsSentenceLen))
         {
@@ -109,8 +112,9 @@ void loop()
                 //0013A200418C5CE4
 
                 if (Serial1){    // Send over transceiver
-                    Serial.print("hewwo?\n");
+                    //Serial.print("hewwo?\n");
                     Serial1.write(payloadPacket, sizeofPacketArray(payloadPacket));
+                    Serial1.flush();
                 }
 
                 //Serial.write(payloadPacket,sizeofPacketArray(payloadPacket));
