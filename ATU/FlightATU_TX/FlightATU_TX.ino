@@ -33,7 +33,6 @@ void setup()
    Serial1.begin(9600);	// Sends to ground station, this needs to be raised
    Serial2.begin(9600);	// Receives from GPS unit
 
-   // This isn't dynamic because memory leaks will goof the entire thing
    bufferPacket = new uint8_t[300];
 
    pinMode(13, OUTPUT);

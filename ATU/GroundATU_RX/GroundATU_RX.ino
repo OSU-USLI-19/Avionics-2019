@@ -9,15 +9,23 @@
  *
 */
 
+#include <SD.h>
+#include <SPI.h>
+
 // Potentially better to initialize inside RX Stream?
 int packetIndex = 0;
 int packetLength = 0;
 int packetLengthIndex = 0;
 
+int switchPin = 0;
+int buttonPin = 0;
+
+const int chipSelect = BUILTIN_SDCARD;
+File dataFile;
 
 //uint8_t ATUaddress_1[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x64, 0x5B}; Old Rick
 uint8_t ATUaddress_2[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x55, 0xD7}; // New Rick
-uint8_t ATUaddress_2[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x78, 0xE2}; //013A204178E2 - Summer
+uint8_t ATUaddress_2[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x78, 0xE2}; // Summer
 
 char ATU_1_Name[5] = "rick", ATU_2_Name[7] = "summer";
 char transmitFlag = '0'; // Used to determine if PLEC trigger needs to be sent
@@ -29,6 +37,9 @@ void setup()
 {
     Serial.begin(9600);  // USB to PC
     Serial1.begin(9600); // Xbee
+
+    pinMode(switchPin, INPUT);
+    pinMode(buttonPin, INPUT);
 }
 
 void loop()
@@ -40,8 +51,8 @@ void loop()
     if (transmitFlag != '0')
     {
         PLECTrigger();
+        transmitCoords();
         //txStream(transmitFlag);
-        transmitFlag = '0';
     }
 }
 
@@ -170,6 +181,11 @@ void PLECTrigger()
         Serial1.write(PLECpacket, sizeofPacketArray(PLECpacket));
         Serial.println("Transmission complete.");
     }
+}
+
+// Send to Rover
+void transmitCoords(){
+  
 }
 
 // Input from XBee serial
