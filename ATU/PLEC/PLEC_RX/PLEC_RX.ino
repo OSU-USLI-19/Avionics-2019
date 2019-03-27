@@ -384,7 +384,7 @@ void loop()
       disarmAll();
       digitalWrite(PIN_5D, HIGH);
       digitalWrite(PIN_45S, HIGH);
-      isArmed = false;
+      //isArmed = false;
       igntion_seq = 0;
       break;
     default:
@@ -398,6 +398,7 @@ void loop()
     // Charge delay configuration
     if (currentTime > arming_delay+7*sequence_delay) {
       igntion_seq = 0;
+      isArmed = false;
     } else if (currentTime > arming_delay+6*sequence_delay) {
       igntion_seq = 5;
     } else if (currentTime > arming_delay+5*sequence_delay+rest_time) {
