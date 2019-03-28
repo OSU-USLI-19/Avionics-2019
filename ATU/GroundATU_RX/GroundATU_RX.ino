@@ -9,14 +9,21 @@
  *
 */
 
+#include <SD.h>
+#include <SPI.h>
+
 // Potentially better to initialize inside RX Stream?
 int packetIndex = 0;
 int packetLength = 0;
 int packetLengthIndex = 0;
 
+int GPSswitchPin = 12;
+
+const int chipSelect = BUILTIN_SDCARD;
+File dataFile;
 
 //uint8_t ATUaddress_1[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x64, 0x5B}; Old Rick
-uint8_t ATUaddress_2[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x55, 0xD7}; // New Rick
+uint8_t ATUaddress_1[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x55, 0xD7}; // New Rick
 uint8_t ATUaddress_2[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x78, 0xE2}; //013A204178E2 - Summer
 
 char ATU_1_Name[5] = "rick", ATU_2_Name[7] = "summer";
@@ -29,6 +36,12 @@ void setup()
 {
     Serial.begin(9600);  // USB to PC
     Serial1.begin(9600); // Xbee
+
+    pinMode(13, OUTPUT);
+    digitalWrite(13, HIGH);
+    
+    SD.begin(chipSelect);
+    dataFile = SD.open("datalog.txt", FILE_WRITE);
 }
 
 void loop()
@@ -119,6 +132,7 @@ void rxStream()
         {
             currentWord = payload[idx];
             Serial.print((char)currentWord);
+            dataFile.print((char)currentWord);
             idx++;
         }
 
@@ -137,13 +151,22 @@ void rxStream()
         }
 
         if (ATU_1_identifier)
+        {
             Serial.print(ATU_1_Name); // Prints the atu name
+            dataFile.print(ATU_1_Name);
+        }
 
         if (ATU_2_identifier)
+        {
             Serial.print(ATU_2_Name); // Prints the atu name
+            dataFile.print(ATU_2_Name);
+        }
 
         alreadyRead = false;
         Serial.print('@');
+
+        dataFile.close();
+        dataFile = SD.open("datalog.txt", FILE_WRITE);
     }
 }
 
