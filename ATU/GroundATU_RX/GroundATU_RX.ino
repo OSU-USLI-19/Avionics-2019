@@ -135,7 +135,10 @@ void rxStream()
             currentWord = payload[idx];
             roverPayload[idx] = currentWord;
             Serial.print((char)currentWord);
-            dataFile.print((char)currentWord);
+            
+            if(dataFile)
+              dataFile.print((char)currentWord);
+            
             idx++;
         }
 
@@ -156,16 +159,23 @@ void rxStream()
         if (ATU_1_identifier)
         {
             Serial.print(ATU_1_Name); // Prints the atu name
-            dataFile.print(ATU_1_Name);
+            
+            if(dataFile)
+              dataFile.print(ATU_1_Name);
         }
 
         if (ATU_2_identifier)
         {
             Serial.print(ATU_2_Name); // Prints the atu name
-            dataFile.print(ATU_2_Name);
+            
+            if(dataFile)
+              dataFile.print(ATU_2_Name);
 
             while(digitalRead(GPSswitchPin) == HIGH)
+            {
+              Serial.println(roverPayload);
               Serial1.write(roverPayload, sizeof(roverPayload));
+            }
         }
 
         alreadyRead = false;
