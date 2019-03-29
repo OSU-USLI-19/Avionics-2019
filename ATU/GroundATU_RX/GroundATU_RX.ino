@@ -39,9 +39,12 @@ void setup()
     Serial.begin(9600);  // USB to PC
     Serial1.begin(9600); // Xbee
 
-    pinMode(GPSswitchPin, INPUT);
-    pinMode(PLECswitchPin, INPUT);
-    pinMode(PLECbuttonPin, INPUT);
+    pinMode(GPSswitchPin, INPUT_PULLDOWN);
+    pinMode(PLECswitchPin, INPUT_PULLDOWN);
+    pinMode(PLECbuttonPin, INPUT_PULLDOWN);
+
+    pinMode(13, OUTPUT);
+    digitalWrite(13, HIGH); 
 }
 
 void loop()
@@ -49,13 +52,9 @@ void loop()
     if (Serial1.available())
         rxStream();
 
-    // This will be expanded into the PLEC trigger proper
-    while ((digitalRead(PLECbuttonPin) == HIGH) && (digitalRead(PLECswitchPin) == HIGH))
+    // This will be expanded into the PLEC trigger proper, but testing must be done
+    if ((digitalRead(PLECbuttonPin) == HIGH) && (digitalRead(PLECswitchPin) == HIGH))
       PLECTrigger();
-
-    while (digitalRead(GPSswitchPin) == HIGH)
-      transmitCoords();
-      
 }
 
 // This needs to be changed to query from GUI for PLEC trigger
@@ -63,6 +62,7 @@ void rxStream()
 {
     // Maybe rename 'string' so that we know what it does
     uint8_t string[200], payload[100];
+    char roverPayload[70];
     uint8_t inbyte = 0x00;
 
     bool alreadyRead = false, ATU_1_identifier = true, ATU_2_identifier = true;
@@ -131,6 +131,7 @@ void rxStream()
         while (currentWord != 0xEE)
         {
             currentWord = payload[idx];
+            roverPayload[idx] = (char)currentWord;
             Serial.print((char)currentWord);
             idx++;
         }
@@ -157,6 +158,17 @@ void rxStream()
 
         alreadyRead = false;
         Serial.print('@');
+        Serial.print('\n');
+
+        // This still needs to be tested on the rover side of things
+        if((digitalRead(GPSswitchPin) == HIGH) && (ATU_2_identifier))
+        {
+          // Commented out to prevent ground side buffer overflows
+          /*Serial.println("Here's what we're spittin':");
+           *Serial.println(roverPayload);*/
+          Serial.println("TRANSMITTING TO ROVER");
+          Serial1.write(roverPayload, sizeof(roverPayload));
+        }
     }
 }
 
