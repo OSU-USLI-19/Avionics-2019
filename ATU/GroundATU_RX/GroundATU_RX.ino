@@ -45,6 +45,9 @@ void setup()
 
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH); 
+
+    SD.begin(chipSelect);
+    dataFile = SD.open("datalog.txt", FILE_WRITE);
 }
 
 void loop()
@@ -136,6 +139,9 @@ void rxStream()
             idx++;
         }
 
+        if(dataFile)
+          dataFile.print(roverPayload);
+          
         Serial.print(',');
         // Serial.println(); //for debugging, remove for actual thing
 
@@ -151,11 +157,21 @@ void rxStream()
         }
 
         if (ATU_1_identifier)
+        {
             Serial.print(ATU_1_Name); // Prints the atu name
 
+            if(dataFile)
+              dataFile.print(ATU_1_Name);
+        }
+        
         if (ATU_2_identifier)
+        {
             Serial.print(ATU_2_Name); // Prints the atu name
 
+            if(dataFile)
+              dataFile.print(ATU_2_Name);
+        }
+        
         alreadyRead = false;
         Serial.print('@');
         Serial.print('\n');
@@ -169,6 +185,9 @@ void rxStream()
           Serial.println("TRANSMITTING TO ROVER");
           Serial1.write(roverPayload, sizeof(roverPayload));
         }
+
+        dataFile.close();
+        dataFile = SD.open("datalog.txt", FILE_WRITE); 
     }
 }
 
