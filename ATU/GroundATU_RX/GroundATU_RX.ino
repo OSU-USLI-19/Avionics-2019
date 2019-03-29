@@ -42,8 +42,8 @@ void setup()
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);
     
-    SD.begin(chipSelect);
-    dataFile = SD.open("datalog.txt", FILE_WRITE);
+    //SD.begin(chipSelect);
+    //dataFile = SD.open("datalog.txt", FILE_WRITE);
 }
 
 void loop()
@@ -137,8 +137,8 @@ void rxStream()
             roverPayload[idx] = (char)currentWord;
             Serial.print((char)currentWord);
             
-            if(dataFile)
-              dataFile.print((char)currentWord);
+            //if(dataFile)
+              //dataFile.print((char)currentWord);
             
             idx++;
         }
@@ -161,16 +161,16 @@ void rxStream()
         {
             Serial.print(ATU_1_Name); // Prints the atu name
             
-            if(dataFile)
-              dataFile.print(ATU_1_Name);
+            //if(dataFile)
+              //dataFile.print(ATU_1_Name);
         }
 
         if (ATU_2_identifier)
         {
            Serial.print(ATU_2_Name); // Prints the atu name
             
-           if(dataFile)
-              dataFile.print(ATU_2_Name);
+           //if(dataFile)
+              //dataFile.print(ATU_2_Name);
         }
 
         alreadyRead = false;
@@ -179,14 +179,15 @@ void rxStream()
 
         if((digitalRead(GPSswitchPin) == HIGH) && (ATU_2_identifier))
         {
-          //Serial.println("Here's what we're spittin:");
-          //Serial.println(roverPayload);
+          // These are commented out to prevent any buffer overflows
+          /*Serial.println("Here's what we're spittin':");
+          Serial.println(roverPayload);*/
           Serial.println("TRANSMITTING TO ROVER");
           Serial1.write(roverPayload, sizeof(roverPayload));
         }
 
-        dataFile.close();
-        dataFile = SD.open("datalog.txt", FILE_WRITE);
+        //dataFile.close();
+        //dataFile = SD.open("datalog.txt", FILE_WRITE);
     }
 
     // Reset everything in the rover payload packet
