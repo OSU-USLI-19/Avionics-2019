@@ -29,7 +29,7 @@ uint8_t ATUaddress_2[8] = {0x00, 0x13, 0xA2, 0x00, 0x41, 0x78, 0xE2}; //013A2041
 char ATU_1_Name[5] = "rick", ATU_2_Name[7] = "summer";
 char transmitFlag = '0'; // Used to determine if PLEC trigger needs to be sent
 
-uint8_t *PLECpacket, *packetPayload = new uint8_t[10], *roverPayload = new uint8_t[100];
+uint8_t *PLECpacket, *packetPayload = new uint8_t[10];
 uint8_t *packet = new uint8_t[220];
 
 void setup()
@@ -65,6 +65,7 @@ void rxStream()
 {
     // Maybe rename 'string' so that we know what it does
     uint8_t string[200], payload[100];
+    char roverPayload[70];
     uint8_t inbyte = 0x00;
 
     bool alreadyRead = false, ATU_1_identifier = true, ATU_2_identifier = true;
@@ -128,12 +129,12 @@ void rxStream()
 
         uint8_t currentWord = 0x00;
         int idx = 0;
-
+        
         // Used to print to the PC serial for display/debug
         while (currentWord != 0xEE)
         {
             currentWord = payload[idx];
-            roverPayload[idx] = currentWord;
+            roverPayload[idx] = (char)currentWord;
             Serial.print((char)currentWord);
             
             if(dataFile)
@@ -166,27 +167,30 @@ void rxStream()
 
         if (ATU_2_identifier)
         {
-            Serial.print(ATU_2_Name); // Prints the atu name
+           Serial.print(ATU_2_Name); // Prints the atu name
             
-            if(dataFile)
+           if(dataFile)
               dataFile.print(ATU_2_Name);
-
-            while(digitalRead(GPSswitchPin) == HIGH)
-            {
-              Serial.println(roverPayload);
-              Serial1.write(roverPayload, sizeof(roverPayload));
-            }
         }
 
         alreadyRead = false;
         Serial.print('@');
+        Serial.print('\n');
+
+        if((digitalRead(GPSswitchPin) == HIGH) && (ATU_2_identifier))
+        {
+          //Serial.println("Here's what we're spittin:");
+          //Serial.println(roverPayload);
+          Serial.println("TRANSMITTING TO ROVER");
+          Serial1.write(roverPayload, sizeof(roverPayload));
+        }
 
         dataFile.close();
         dataFile = SD.open("datalog.txt", FILE_WRITE);
     }
 
     // Reset everything in the rover payload packet
-    memset(roverPayload, 0, sizeof(roverPayload);
+    //memset(roverPayload, 0, sizeof(roverPayload));
 }
 
 // Transmission functionality on reception of signal from GUI
