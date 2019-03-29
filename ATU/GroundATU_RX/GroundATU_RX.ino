@@ -172,15 +172,16 @@ void rxStream()
     }
 }
 
-// Transmission functionality on reception of signal from GUI
+// Transmission functionality on reception of signal from button
 void PLECTrigger()
 {
+    // Add button countdown to delay until button held for 5 seconds?
+    
     Serial.println("Transmitting PLEC Trigger");
 
     // 0013A2004178E2EC This is the address of Jerry the PLEC transceiver
 
     PLECpacket = txRequestPacketGenerator(0x0013A200, 0x4178E2EC, packetPayload); //transmit to jerry the plec
-    // PLECpacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, packetPayload); //This is for transmitting to the ground station
 
     if (Serial1)
     {
@@ -189,11 +190,14 @@ void PLECTrigger()
         {
             Serial.print(" 0x");
             Serial.print(PLECpacket[a], HEX);
-        }
+            Serial.println();
 
-        Serial.println();
-        Serial1.write(PLECpacket, sizeofPacketArray(PLECpacket));
-        Serial.println("Transmission complete.");
+            for (int q = 0; q < 10; q++)
+            {
+              Serial1.write(PLECpacket, sizeofPacketArray(PLECpacket));
+              Serial.println("Transmission complete.");
+            }
+        }
     }
 }
 
