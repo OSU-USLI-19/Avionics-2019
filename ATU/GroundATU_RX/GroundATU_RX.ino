@@ -27,6 +27,9 @@ uint8_t *packet = new uint8_t[220];
 
 void setup()
 {
+    pinMode(13, OUTPUT);
+    digitalWrite(13, HIGH);
+    
     Serial.begin(9600);  // USB to PC
     Serial1.begin(9600); // Xbee
 }
@@ -144,6 +147,7 @@ void rxStream()
 
         alreadyRead = false;
         Serial.print('@');
+        Serial.print('\n');
     }
 }
 
