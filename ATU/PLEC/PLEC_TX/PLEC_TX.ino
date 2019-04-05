@@ -9,7 +9,7 @@ int lengthCounter = 0;
 int myCounter = 0;
 
 //explicitly written debuggling lines are very helpful for finding out the content of the packet
-uint8_t *testPacket;
+uint8_t *plecPacket;
 uint8_t *packetPayload = new uint8_t[10];
 int counter = 0;
 char *myData = "4348.0022,N,12038.9769,W this is a test";
@@ -25,10 +25,19 @@ int writeCounter;
 int writeIdx;
 char data[100];
 
+int PLECbuttonPin = 31;
+int PLECswitchPin = 32;
+
 void setup()
 {
   Serial.begin(9600);
   Serial1.begin(9600);
+
+  pinMode(PLECswitchPin, INPUT_PULLDOWN);
+  pinMode(PLECbuttonPin, INPUT_PULLDOWN);
+
+  pinMode(13, OUTPUT);
+  digitalWrite(13, HIGH); 
   
   while (!Serial1){ /*Serial.println("not connected to xbee");*/ }
   
@@ -61,15 +70,14 @@ void loop()
   bool txTrigger = false;
   char triggerWord[8] = "covfefe";
 
-  if (true)
+  if ((digitalRead(PLECbuttonPin) == HIGH) && (digitalRead(PLECswitchPin) == HIGH))
   {
     myCounter++;
-    txTrigger = false;
     Serial.println("transmitting Trigger");
 
     //0013A2004178E2EC This is the address of Jerry the PLEC transceiver
 
-    testPacket = txRequestPacketGenerator(0x0013A200, 0x4178E2EC, packetPayload); //transmit to jerry the plec
+    plecPacket = txRequestPacketGenerator(0x0013A200, 0x4178E2EC, packetPayload); //transmit to jerry the plec
     //testPacket = txRequestPacketGenerator(0x0013A200, 0x4155D78B, packetPayload); //This is for transmitting to the ground station
 
     if (Serial1)
@@ -78,11 +86,11 @@ void loop()
       for (int a = 0; a < 40; a++)
       {
         Serial.print(" 0x");
-        Serial.print(testPacket[a], HEX);
+        Serial.print(plecPacket[a], HEX);
         Serial.println();
         for (int q = 0; q < 10; q++)
         {
-          Serial1.write(testPacket, sizeofPacketArray(testPacket));
+          Serial1.write(plecPacket, sizeofPacketArray(plecPacket));
           Serial.println("done transmitting");
         }
         //Serial.println("done transmitting");
