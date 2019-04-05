@@ -25,8 +25,8 @@ int writeCounter;
 int writeIdx;
 char data[100];
 
-int PLECswitchPin = 31;
-int PLECbuttonPin = 32;
+int PLECbuttonPin = 31;
+int PLECswitchPin = 32;
 
 void setup()
 {
